@@ -3,8 +3,18 @@ Shantisa Strowder
 Samuel Jackson
 Terique Mick
 
-How to compile:
+How to compile and run on nike:
+Note: You must run the files on two separate terminals in nike terminal
 
+Server - myftpserver (must run with a port number argument)
+javac myftpserver
+java myftpserver (port number)
+Example Run: java myftpserver 8055
+
+Client - myftp (must run with both machine name(ip address) and port number argument)
+javac myftp
+java myftp (ip address) (server port number)
+Example Run: java myftp 127.0.0.1 8055
 
 Statement:
 This project was done in its entirety by Shantisa Strowder, Samuel Jackson,

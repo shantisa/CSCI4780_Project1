@@ -22,6 +22,8 @@ public class myftpserver {
             //server is listening
             server = new ServerSocket(Integer.parseInt(port));
 
+            System.out.print("Server is Running... ");
+
             //run infinite loop to get the client requests
             while (true) {
                 //receive incoming client request and establish connection
@@ -46,10 +48,6 @@ class ClientThread extends Thread {
     DataInputStream inputStream = null;
     DataOutputStream outputStream = null;
 
-    public static void main(String[] args) {
-
-    }
-
     //Constructor
     public ClientThread(Socket socket) {
         try {
@@ -66,8 +64,13 @@ class ClientThread extends Thread {
         try {
             while (true) {
                 String command = inputStream.readUTF();
+
+                //testing purposes - server prints out the client command that was sent
+                System.out.println(command);
+
                 String filename = "";
 
+                //implement commands
                 if (command.equals("get")) {
 
                 } else if (command.equals("put")) {

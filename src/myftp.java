@@ -13,6 +13,7 @@ public class myftp {
         try {
             myftp clientSocket = new myftp();
             clientSocket.connection(args[0], args[1]);
+
         } catch (IOException e) {
 
         }
@@ -31,10 +32,11 @@ public class myftp {
             outputStream = new DataOutputStream(socket.getOutputStream());
 
             while (true) {
-                System.out.print("mytftp> ");
+                System.out.print("myftp> ");
                 String input = scanner.nextLine();
-                String[] command = input.split(" ");
+                String[] command = input.trim().split(" ");
 
+                //implement commands
                 if(command[0].equals("get")){
 
                 } else if(command[0].equals("put")){
