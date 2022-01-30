@@ -8,6 +8,8 @@ public class myftp {
 
     DataInputStream inputStream = null;
     DataOutputStream outputStream = null;
+    FileInputStream fileInput = null;
+    FileOutputStream fileOutput = null;
 
     public static void main(String[] args) {
         try {
@@ -36,16 +38,54 @@ public class myftp {
                 String input = scanner.nextLine();
                 String[] command = input.trim().split(" ");
 
+                String filename = "", fileData = "";
+                File file;
+                byte[] data;
+
+                outputStream.writeUTF(command[0]);
+
                 //implement commands
                 if(command[0].equals("get")){
+                    filename = command[1];
+                    outputStream.writeUTF(filename);
+
+                    fileData = inputStream.readUTF();
+                    if(fileData.equals("")){
+                        System.out.println("Did not receive file from server");
+                    } else{
+                        fileOutput = new FileOutputStream(filename);
+                        fileOutput.write(fileData.getBytes());
+                        System.out.println(fileData);
+                        fileOutput.close();
+                    }
 
                 } else if(command[0].equals("put")){
+                    filename = command[1];
+
+                    file = new File(filename);
+
+                    if(file.isFile()){
+                        fileInput = new FileInputStream(file);
+                        data = new byte[fileInput.available()];
+                        fileInput.read(data);
+                        fileInput.close();
+
+                        outputStream.writeUTF(filename);
+                        outputStream.writeUTF(new String(data));
+                    }else{
+                        System.out.println("File Not Found");
+                    }
 
                 } else if(command[0].equals("delete")){
 
                 }  else if(command[0].equals("ls")){
+                    String lsFiles = inputStream.readUTF();
+                    System.out.println(lsFiles);
 
                 }  else if(command[0].equals("cd")){
+                    outputStream.writeUTF(command[1]);
+                    String result = inputStream.readUTF();
+                    System.out.println(result);
 
                 }  else if(command[0].equals("mkdir")){
 

@@ -1,5 +1,6 @@
 import java.io.*;
 import java.net.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class myftpserver {
@@ -47,6 +48,9 @@ class ClientThread extends Thread {
     Socket socket = null;
     DataInputStream inputStream = null;
     DataOutputStream outputStream = null;
+    FileInputStream fileInput = null;
+    FileOutputStream fileOutput = null;
+    String path = "./";
 
     //Constructor
     public ClientThread(Socket socket) {
@@ -65,22 +69,63 @@ class ClientThread extends Thread {
             while (true) {
                 String command = inputStream.readUTF();
 
+                String filename = "", fileData = "";
+                File file;
+
+                byte[] data;
                 //testing purposes - server prints out the client command that was sent
                 System.out.println(command);
 
-                String filename = "";
-
                 //implement commands
                 if (command.equals("get")) {
+                    filename = inputStream.readUTF();
+                    file = new File(path + filename);
+
+                    if(file.isFile()){
+                        fileInput = new FileInputStream(file);
+                        data = new byte[fileInput.available()];
+                        fileInput.read(data);
+                        fileData = new String(data);
+                        fileInput.close();
+                        outputStream.writeUTF(fileData);
+                    }else{
+                        outputStream.writeUTF(""); //No file
+                    }
 
                 } else if (command.equals("put")) {
+                    filename = inputStream.readUTF();
+                    fileData = inputStream.readUTF();
+                    fileOutput = new FileOutputStream(path + filename);
+                    fileOutput.write(fileData.getBytes());
+                    fileOutput.close();
 
                 } else if (command.equals("delete")) {
 
                 } else if (command.equals("ls")) {
+                    file = new File(path);
+                    String[] list = file.list();
+                    outputStream.writeUTF(String.join(" ",list));
 
                 } else if (command.equals("cd")) {
+                    String cd = inputStream.readUTF();
 
+                    if(cd.equals("..")){
+                        if(path.equals("./")){
+                            outputStream.writeUTF("Cannot go up from parent directory");
+                        }else{
+                            int index = path.lastIndexOf('/', path.length()-2);
+                            path = path.substring(0,index+1);
+                            outputStream.writeUTF("Directory changed");
+                        }
+                    }else{
+                        file = new File(path + cd);
+                        if(file.isDirectory()){
+                            path = path + cd + "/";
+                            outputStream.writeUTF("Directory changed");
+                        }else{
+                            outputStream.writeUTF(cd + " is not a valid directory");
+                        }
+                    }
                 } else if (command.equals("mkdir")) {
 
                 } else if (command.equals("pwd")) {
