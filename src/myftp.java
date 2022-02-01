@@ -10,6 +10,7 @@ public class myftp {
     DataOutputStream outputStream = null;
     FileInputStream fileInput = null;
     FileOutputStream fileOutput = null;
+    BufferedReader buffered = null;
 
     public static void main(String[] args) {
         try {
@@ -24,7 +25,8 @@ public class myftp {
     // connection is a function that establishes a connection with the server
     public void connection(String ip, String port) throws IOException {
         try {
-            Scanner scanner = new Scanner(System.in);
+            InputStreamReader scanner = new InputStreamReader(System.in);
+            buffered = new BufferedReader(scanner);
 
             // establish connection with server
             socket = new Socket(ip, Integer.parseInt(port));
@@ -34,8 +36,8 @@ public class myftp {
             outputStream = new DataOutputStream(socket.getOutputStream());
 
             while (true) {
-                System.out.print("myftp> ");
-                String input = scanner.nextLine();
+                System.out.print("mytftp> ");
+                String input = buffered.readLine();
                 String[] command = input.trim().split(" ");
 
                 String filename = "", fileData = "";

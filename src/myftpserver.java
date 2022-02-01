@@ -1,6 +1,8 @@
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 
 public class myftpserver {
@@ -50,7 +52,7 @@ class ClientThread extends Thread {
     DataOutputStream outputStream = null;
     FileInputStream fileInput = null;
     FileOutputStream fileOutput = null;
-    String path = "./";
+    Path path = Paths.get("").toAbsolutePath();
 
     //Constructor
     public ClientThread(Socket socket) {
@@ -79,7 +81,7 @@ class ClientThread extends Thread {
                 //implement commands
                 if (command.equals("get")) {
                     filename = inputStream.readUTF();
-                    file = new File(path + filename);
+                    file = path.resolve(filename).toFile();
 
                     if(file.isFile()){
                         fileInput = new FileInputStream(file);
@@ -95,36 +97,26 @@ class ClientThread extends Thread {
                 } else if (command.equals("put")) {
                     filename = inputStream.readUTF();
                     fileData = inputStream.readUTF();
-                    fileOutput = new FileOutputStream(path + filename);
+                    fileOutput = new FileOutputStream(path.resolve(filename).toFile());
                     fileOutput.write(fileData.getBytes());
                     fileOutput.close();
 
                 } else if (command.equals("delete")) {
 
                 } else if (command.equals("ls")) {
-                    file = new File(path);
+                    file = path.toFile();
                     String[] list = file.list();
                     outputStream.writeUTF(String.join(" ",list));
 
                 } else if (command.equals("cd")) {
                     String cd = inputStream.readUTF();
 
-                    if(cd.equals("..")){
-                        if(path.equals("./")){
-                            outputStream.writeUTF("Cannot go up from parent directory");
-                        }else{
-                            int index = path.lastIndexOf('/', path.length()-2);
-                            path = path.substring(0,index+1);
-                            outputStream.writeUTF("Directory changed");
-                        }
+                    file = path.resolve(cd).toFile();
+                    if(file.isDirectory()){
+                        path = path.resolve(cd);
+                        outputStream.writeUTF("Directory changed");
                     }else{
-                        file = new File(path + cd);
-                        if(file.isDirectory()){
-                            path = path + cd + "/";
-                            outputStream.writeUTF("Directory changed");
-                        }else{
-                            outputStream.writeUTF(cd + " is not a valid directory");
-                        }
+                        outputStream.writeUTF(cd + " is not a valid directory");
                     }
                 } else if (command.equals("mkdir")) {
 
