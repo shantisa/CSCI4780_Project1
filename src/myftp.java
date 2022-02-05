@@ -10,7 +10,6 @@ public class myftp {
     DataOutputStream outputStream = null;
     FileInputStream fileInput = null;
     FileOutputStream fileOutput = null;
-    BufferedReader buffered = null;
 
     public static void main(String[] args) {
         try {
@@ -25,8 +24,7 @@ public class myftp {
     // connection is a function that establishes a connection with the server
     public void connection(String ip, String port) throws IOException {
         try {
-            InputStreamReader scanner = new InputStreamReader(System.in);
-            buffered = new BufferedReader(scanner);
+            Scanner scanner = new Scanner(System.in);
 
             // establish connection with server
             socket = new Socket(ip, Integer.parseInt(port));
@@ -37,10 +35,11 @@ public class myftp {
 
             while (true) {
                 System.out.print("mytftp> ");
-                String input = buffered.readLine();
+                String input = scanner.nextLine();
                 String[] command = input.trim().split(" ");
 
                 String filename = "", fileData = "";
+                int read;
                 File file;
                 byte[] data;
 
@@ -50,34 +49,41 @@ public class myftp {
                 if(command[0].equals("get")){
                     filename = command[1];
                     outputStream.writeUTF(filename);
+                    long size = inputStream.readLong();
 
-                    fileData = inputStream.readUTF();
-                    if(fileData.equals("")){
-                        System.out.println("Did not receive file from server");
-                    } else{
+                    if(size > 0){
+                        data = new byte[1024*1000];
                         fileOutput = new FileOutputStream(filename);
-                        fileOutput.write(fileData.getBytes());
-                        System.out.println(fileData);
-                        fileOutput.close();
-                    }
 
+                        while (size > 0 && (read = inputStream.read(data, 0, (int)Math.min(data.length, size))) != -1) {
+                            fileOutput.write(data,0,read);
+                            size -= read;
+                        }
+
+                        fileOutput.close();
+                    }else{
+                        System.out.println("Did not receive file from server");
+                    }
                 } else if(command[0].equals("put")){
                     filename = command[1];
+                    outputStream.writeUTF(filename);
 
                     file = new File(filename);
 
                     if(file.isFile()){
+                        outputStream.writeLong(file.length());
                         fileInput = new FileInputStream(file);
-                        data = new byte[fileInput.available()];
-                        fileInput.read(data);
+                        data = new byte[1024*1000];
+
+                        while ((read=fileInput.read(data))!=-1){
+                            outputStream.write(data,0,read);
+                            outputStream.flush();
+                        }
                         fileInput.close();
-
-                        outputStream.writeUTF(filename);
-                        outputStream.writeUTF(new String(data));
-                    }else{
+                    } else{
                         System.out.println("File Not Found");
+                        outputStream.writeLong(0); //No file
                     }
-
                 } else if(command[0].equals("delete")){
 
                 }  else if(command[0].equals("ls")){
@@ -104,6 +110,7 @@ public class myftp {
                 outputStream.close();
             } catch(Exception e){
                 System.out.println("Can't establish connection to Server");
+                e.printStackTrace();
             }
 
         }

@@ -52,6 +52,7 @@ class ClientThread extends Thread {
     DataOutputStream outputStream = null;
     FileInputStream fileInput = null;
     FileOutputStream fileOutput = null;
+
     Path path = Paths.get("").toAbsolutePath();
 
     //Constructor
@@ -70,11 +71,11 @@ class ClientThread extends Thread {
         try {
             while (true) {
                 String command = inputStream.readUTF();
-
                 String filename = "", fileData = "";
                 File file;
 
                 byte[] data;
+                int read;
                 //testing purposes - server prints out the client command that was sent
                 System.out.println(command);
 
@@ -84,23 +85,35 @@ class ClientThread extends Thread {
                     file = path.resolve(filename).toFile();
 
                     if(file.isFile()){
+                        outputStream.writeLong(file.length());
                         fileInput = new FileInputStream(file);
-                        data = new byte[fileInput.available()];
-                        fileInput.read(data);
-                        fileData = new String(data);
+                        data = new byte[1024*1000];
+
+                        while ((read=fileInput.read(data))!=-1){
+                            outputStream.write(data,0,read);
+                            outputStream.flush();
+                        }
                         fileInput.close();
-                        outputStream.writeUTF(fileData);
                     }else{
-                        outputStream.writeUTF(""); //No file
+                        outputStream.writeLong(0); //No file
                     }
 
                 } else if (command.equals("put")) {
-                    filename = inputStream.readUTF();
-                    fileData = inputStream.readUTF();
-                    fileOutput = new FileOutputStream(path.resolve(filename).toFile());
-                    fileOutput.write(fileData.getBytes());
-                    fileOutput.close();
 
+                    filename = inputStream.readUTF();
+                    long size = inputStream.readLong();
+
+                    if(size > 0) {
+                        data = new byte[1024 * 1000];
+                        fileOutput = new FileOutputStream(path.resolve(filename).toFile());
+
+                        while (size > 0 && (read = inputStream.read(data, 0, (int) Math.min(data.length, size))) != -1) {
+                            fileOutput.write(data, 0, read);
+                            size -= read;
+                        }
+
+                        fileOutput.close();
+                    }
                 } else if (command.equals("delete")) {
 
                 } else if (command.equals("ls")) {
@@ -129,7 +142,6 @@ class ClientThread extends Thread {
                 }
 
             }
-
             inputStream.close();
             outputStream.close();
 
