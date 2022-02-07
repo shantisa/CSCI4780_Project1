@@ -4,7 +4,10 @@ Samuel Jackson
 Terique Mick
 
 How to compile and run on nike:
-Note: You must run the files on two separate terminals in nike terminal
+Note: You must run the files on two separate terminals in nike. When
+running the client, make sure to put the ip address argument before the server
+port number. Examples are listed below for compiling and running both the server
+and client files.
 
 Server - myftpserver (must run with a port number argument)
 javac myftpserver

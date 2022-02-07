@@ -1,9 +1,8 @@
 import java.io.*;
-import java.net.*;
-import java.nio.charset.StandardCharsets;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
 
 public class myftpserver {
     //initialize socket
@@ -15,7 +14,7 @@ public class myftpserver {
             myftpserver serverSocket = new myftpserver();
             serverSocket.connection(args[0]);
         } catch (IOException e) {
-
+            e.printStackTrace();
         }
     }
 
@@ -62,7 +61,7 @@ class ClientThread extends Thread {
             inputStream = new DataInputStream(socket.getInputStream());
             outputStream = new DataOutputStream(socket.getOutputStream());
         } catch (Exception e) {
-
+            e.printStackTrace();
         }
 
     }
@@ -71,13 +70,14 @@ class ClientThread extends Thread {
         try {
             while (true) {
                 String command = inputStream.readUTF();
-                String filename = "", fileData = "";
+                String filename = "";
                 File file;
 
                 byte[] data;
                 int read;
+
                 //testing purposes - server prints out the client command that was sent
-                System.out.println(command);
+                //System.out.println(command);
 
                 //implement commands
                 if (command.equals("get")) {
@@ -87,7 +87,7 @@ class ClientThread extends Thread {
                     if(file.isFile()){
                         outputStream.writeLong(file.length());
                         fileInput = new FileInputStream(file);
-                        data = new byte[1024*1000];
+                        data = new byte[1024*100];
 
                         while ((read=fileInput.read(data))!=-1){
                             outputStream.write(data,0,read);
@@ -104,7 +104,7 @@ class ClientThread extends Thread {
                     long size = inputStream.readLong();
 
                     if(size > 0) {
-                        data = new byte[1024 * 1000];
+                        data = new byte[1024 * 100];
                         fileOutput = new FileOutputStream(path.resolve(filename).toFile());
 
                         while (size > 0 && (read = inputStream.read(data, 0, (int) Math.min(data.length, size))) != -1) {
@@ -115,7 +115,14 @@ class ClientThread extends Thread {
                         fileOutput.close();
                     }
                 } else if (command.equals("delete")) {
+                    String del = inputStream.readUTF();
+                    file = path.resolve(del).toFile();
 
+                    if(file.isFile() && file.delete()){
+                        outputStream.writeUTF("File deleted");
+                    }else{
+                        outputStream.writeUTF("File does not exist");
+                    }
                 } else if (command.equals("ls")) {
                     file = path.toFile();
                     String[] list = file.list();
@@ -132,9 +139,17 @@ class ClientThread extends Thread {
                         outputStream.writeUTF(cd + " is not a valid directory");
                     }
                 } else if (command.equals("mkdir")) {
+                    String dir = inputStream.readUTF();
 
+                    file = path.resolve(dir).toFile();
+
+                    if(file.mkdir()){
+                        outputStream.writeUTF("Directory is created");
+                    }else{
+                        outputStream.writeUTF("Directory could not be created");
+                    }
                 } else if (command.equals("pwd")) {
-
+                    outputStream.writeUTF(path.normalize().toString());
                 } else if (command.equals("quit")) {
                     break;
                 } else {
@@ -146,7 +161,7 @@ class ClientThread extends Thread {
             outputStream.close();
 
         } catch (Exception e) {
-
+            e.printStackTrace();
         }
     }
 }

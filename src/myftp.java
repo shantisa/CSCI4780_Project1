@@ -17,7 +17,7 @@ public class myftp {
             clientSocket.connection(args[0], args[1]);
 
         } catch (IOException e) {
-
+            e.printStackTrace();
         }
     }
 
@@ -38,7 +38,7 @@ public class myftp {
                 String input = scanner.nextLine();
                 String[] command = input.trim().split(" ");
 
-                String filename = "", fileData = "";
+                String filename = "";
                 int read;
                 File file;
                 byte[] data;
@@ -52,7 +52,7 @@ public class myftp {
                     long size = inputStream.readLong();
 
                     if(size > 0){
-                        data = new byte[1024*1000];
+                        data = new byte[1024*100];
                         fileOutput = new FileOutputStream(filename);
 
                         while (size > 0 && (read = inputStream.read(data, 0, (int)Math.min(data.length, size))) != -1) {
@@ -73,7 +73,7 @@ public class myftp {
                     if(file.isFile()){
                         outputStream.writeLong(file.length());
                         fileInput = new FileInputStream(file);
-                        data = new byte[1024*1000];
+                        data = new byte[1024*100];
 
                         while ((read=fileInput.read(data))!=-1){
                             outputStream.write(data,0,read);
@@ -85,7 +85,8 @@ public class myftp {
                         outputStream.writeLong(0); //No file
                     }
                 } else if(command[0].equals("delete")){
-
+                    outputStream.writeUTF(command[1]);
+                    System.out.println(inputStream.readUTF());
                 }  else if(command[0].equals("ls")){
                     String lsFiles = inputStream.readUTF();
                     System.out.println(lsFiles);
@@ -96,9 +97,12 @@ public class myftp {
                     System.out.println(result);
 
                 }  else if(command[0].equals("mkdir")){
+                    outputStream.writeUTF(command[1]);
+                    System.out.println(inputStream.readUTF());
 
                 }  else if(command[0].equals("pwd")){
-
+                    String pwd = inputStream.readUTF();
+                    System.out.println(pwd);
                 }  else if(command[0].equals("quit")){
                     outputStream.writeUTF(input);
                     break;
