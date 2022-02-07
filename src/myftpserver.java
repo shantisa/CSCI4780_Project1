@@ -115,6 +115,14 @@ class ClientThread extends Thread {
                         fileOutput.close();
                     }
                 } else if (command.equals("delete")) {
+                	
+                	file = path.toFile();
+                	
+                	if (file.delete()) { 
+                	      System.out.println("Deleted the file: " + file.getName());
+                	    } else {
+                	      System.out.println("Failed to delete the file.");
+                	} 
 
                 } else if (command.equals("ls")) {
                     file = path.toFile();
@@ -132,8 +140,17 @@ class ClientThread extends Thread {
                         outputStream.writeUTF(cd + " is not a valid directory");
                     }
                 } else if (command.equals("mkdir")) {
-
+                	File  f = new File(command[1]);
+                	
+                	if (f.mkdir()) {
+                		System.out.println("Directory was created.")
+                	}
+                	else {
+                		System.out.println("Directory not successfully created.");
+                	}
+                	
                 } else if (command.equals("pwd")) {
+                	System.out.println(path.toFile());
 
                 } else if (command.equals("quit")) {
                     break;

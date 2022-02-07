@@ -1,6 +1,8 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import myftpserver;
+
 
 public class myftp {
     //initialize socket
@@ -46,6 +48,8 @@ public class myftp {
                 outputStream.writeUTF(command[0]);
 
                 //implement commands
+
+                // Get Command
                 if(command[0].equals("get")){
                     filename = command[1];
                     outputStream.writeUTF(filename);
@@ -64,7 +68,10 @@ public class myftp {
                     }else{
                         System.out.println("Did not receive file from server");
                     }
-                } else if(command[0].equals("put")){
+                } 
+
+                // Put Command
+                else if(command[0].equals("put")){
                     filename = command[1];
                     outputStream.writeUTF(filename);
 
@@ -84,22 +91,55 @@ public class myftp {
                         System.out.println("File Not Found");
                         outputStream.writeLong(0); //No file
                     }
-                } else if(command[0].equals("delete")){
+                }  
 
-                }  else if(command[0].equals("ls")){
+                // List Command
+                else if(command[0].equals("ls")){
                     String lsFiles = inputStream.readUTF();
                     System.out.println(lsFiles);
 
-                }  else if(command[0].equals("cd")){
+                }  
+
+                // Change Directory Command
+                else if(command[0].equals("cd")){
                     outputStream.writeUTF(command[1]);
                     String result = inputStream.readUTF();
                     System.out.println(result);
 
-                }  else if(command[0].equals("mkdir")){
+                }  
+                
+                // Delete Command
+                else if(command[0].equals("delete")){
+                	file = path.toFile();
+                	
+                	if (file.delete()) { 
+                	      System.out.println("Deleted the file: " + file.getName());
+                	    } else {
+                	      System.out.println("Failed to delete the file.");
+                	} 
 
-                }  else if(command[0].equals("pwd")){
+                } 
 
-                }  else if(command[0].equals("quit")){
+                // Create Directory Command
+                else if(command[0].equals("mkdir")){
+                	File  f = new File(command[1]);
+                	
+                	if (f.mkdir()) {
+                		System.out.println("Directory was created.")
+                	}
+                	else {
+                		System.out.println("Directory not successfully created.");
+                	}
+                	
+                }  
+
+                // Print Working Directory Command
+                else if(command[0].equals("pwd")){
+                	System.out.println(path.toFile());
+                }  
+
+                // Quit Command
+                else if(command[0].equals("quit")){
                     outputStream.writeUTF(input);
                     break;
                 }
