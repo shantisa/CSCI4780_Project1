@@ -126,7 +126,11 @@ class ClientThread extends Thread {
                 } else if (command.equals("ls")) {
                     file = path.toFile();
                     String[] list = file.list();
-                    outputStream.writeUTF(String.join(" ",list));
+                    String result = "";
+                    if(list != null){
+                        result = String.join(" ",list);
+                    }
+                    outputStream.writeUTF(result);
 
                 } else if (command.equals("cd")) {
                     String cd = inputStream.readUTF();

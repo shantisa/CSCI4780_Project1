@@ -53,6 +53,10 @@ public class myftp {
 
                     if(size > 0){
                         data = new byte[1024*100];
+                        File parent = new File(filename).getParentFile();
+                        if(parent!=null){
+                            parent.mkdirs();
+                        }
                         fileOutput = new FileOutputStream(filename);
 
                         while (size > 0 && (read = inputStream.read(data, 0, (int)Math.min(data.length, size))) != -1) {
@@ -66,9 +70,9 @@ public class myftp {
                     }
                 } else if(command[0].equals("put")){
                     filename = command[1];
-                    outputStream.writeUTF(filename);
 
                     file = new File(filename);
+                    outputStream.writeUTF(file.getName());
 
                     if(file.isFile()){
                         outputStream.writeLong(file.length());

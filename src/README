@@ -10,14 +10,14 @@ port number. Examples are listed below for compiling and running both the server
 and client files.
 
 Server - myftpserver (must run with a port number argument)
-javac myftpserver
+javac myftpserver.java
 java myftpserver (port number)
-Example Run: java myftpserver 8055
+Example Run: java myftpserver 10000
 
 Client - myftp (must run with both machine name(ip address) and port number argument)
-javac myftp
-java myftp (ip address) (server port number)
-Example Run: java myftp 127.0.0.1 8055
+javac myftp.java
+java myftp (server ip address) (server port number)
+Example Run: java myftp 172.19.49.100  10000
 
 Statement:
 This project was done in its entirety by Shantisa Strowder, Samuel Jackson,
