@@ -3,18 +3,8 @@ import java.net.*;
 import java.util.*;
 
 public class myftp {
-    //initialize socket
-    Socket socket = null;
-    Socket tsocket = null;
-
-    DataInputStream inputStream = null;
-    DataOutputStream outputStream = null;
-    DataInputStream tinput = null;
-    DataOutputStream toutput = null;
-    FileInputStream fileInput = null;
-    FileOutputStream fileOutput = null;
-    List<Integer> terminatedCommands = new ArrayList<>();
-    Boolean nSocketInUse = false;
+    final Map<Integer, Socket> workingSockets = new HashMap<>();
+    final List<String> filesInUse = new ArrayList<>();
 
     public static void main(String[] args) {
         try {
@@ -28,50 +18,93 @@ public class myftp {
 
     // connection is a function that establishes a connection with the server
     public void connection(String ip, String port, String tport) throws IOException {
-        try {
-            Scanner scanner = new Scanner(System.in);
+        Scanner scanner = new Scanner(System.in);
+        // establish connection with server
+        Terminator terminator = new Terminator(ip, Integer.parseInt(tport));
+        Client client = new Client(ip, Integer.parseInt(port));
 
+        while (true) {
+            System.out.print("mytftp> ");
+            String input = scanner.nextLine();
+            String[] command = input.trim().split(" ");
+            terminator.process(command);
+            client.process(command);
+            if (command[0].equals("quit")) {
+                terminator.close();
+                break;
+            }
+        }
+
+    }
+
+    class Terminator {
+        String ip;
+        int port;
+        Socket socket;
+        DataInputStream inputStream;
+        DataOutputStream outputStream;
+
+        Terminator(String ip, int port) throws IOException {
+            this.ip = ip;
+            this.port = port;
             // establish connection with server
-            socket = new Socket(ip, Integer.parseInt(port));
-            tsocket = new Socket(ip, Integer.parseInt(tport));
-
-            // obtain input and out streams
+            socket = new Socket(ip, port);
             inputStream = new DataInputStream(socket.getInputStream());
             outputStream = new DataOutputStream(socket.getOutputStream());
-            tinput = new DataInputStream(tsocket.getInputStream());
-            toutput = new DataOutputStream(tsocket.getOutputStream());
+        }
 
-            while (true) {
-                System.out.print("mytftp> ");
-                String input = scanner.nextLine();
-                String[] command = input.trim().split(" ");
-
-                byte[] data;
+        private void process(String[] command) {
+            try {
+                outputStream.writeUTF(command[0]);
 
                 if (command[0].equals("terminate")) {
-                    toutput.writeUTF(command[0]);
                     int id = Integer.parseInt(command[1]);
-                    toutput.writeInt(id);
-                    boolean success = tinput.readBoolean();
+                    outputStream.writeInt(id);
+                    boolean success = inputStream.readBoolean();
                     if (success) {
-                        synchronized (terminatedCommands) {
-                            terminatedCommands.add(id);
-                            inputStream.reset();
+                        synchronized (workingSockets) {
+                            Socket socket = workingSockets.get(id);
+                            if(socket != null){
+                                socket.close();
+                            }
                         }
                     }
-                    String result = tinput.readUTF();
+                    String result = inputStream.readUTF();
                     System.out.println(result);
-                    continue;
                 }
+            } catch (Exception e) {
+                System.out.println("Can't establish connection to Server");
+                e.printStackTrace();
+            }
+        }
 
-                boolean busy;
-                synchronized (nSocketInUse) {
-                    busy = nSocketInUse;
-                }
-                if (busy) {
-                    System.out.println("normal port is busy, you can use terminate or wait for upload/download to finish");
-                    continue;
-                }
+        void close() throws IOException {
+            outputStream.writeUTF("quit");
+            inputStream.close();
+            outputStream.close();
+            socket.close();
+        }
+    }
+
+    class Client {
+        String ip;
+        int port;
+        int id;
+
+        Client(String ip, int port) {
+            this.ip = ip;
+            this.port = port;
+            id = ((int) (Math.random()*(253))) + 1;
+        }
+
+        private void process(String[] command) {
+            try {
+                // establish connection with server
+                Socket socket = new Socket(ip, port, InetAddress.getByName("127.0.0."+id), 0);
+                DataInputStream inputStream = new DataInputStream(socket.getInputStream());
+                DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
+
+                byte[] data;
 
                 outputStream.writeUTF(command[0]);
 
@@ -93,43 +126,59 @@ public class myftp {
                         if (parent != null) {
                             parent.mkdirs();
                         }
-                        fileOutput = new FileOutputStream(file);
+                        FileOutputStream fileOutput = new FileOutputStream(file);
                         if (concurrent) {
                             int commandId = inputStream.readInt();
                             System.out.println("command is running with id : " + commandId);
-                            final String fileId = file.getAbsolutePath();
+                            workingSockets.put(commandId, socket);
 
+                            final String fileId = file.getAbsolutePath();
                             new Thread(() -> {
-                                synchronized (nSocketInUse) {
-                                    nSocketInUse = true;
-                                }
                                 try {
+                                    boolean inUse;
+                                    do {
+                                        synchronized (filesInUse) {
+                                            if (!filesInUse.contains(fileId)) {
+                                                filesInUse.add(fileId);
+                                                inUse = false;
+                                            } else {
+                                                inUse = true;
+                                            }
+                                        }
+                                        if (inUse) {
+                                            Thread.sleep(1000);
+                                        }
+                                    } while (inUse);
+
                                     int read;
                                     long size = finalSize;
-                                    boolean terminated = false;
-                                    while (size > 0 && (read = inputStream.read(data, 0, (int) Math.min(data.length, size))) != -1
-                                            && !terminated) {
-                                        synchronized (terminatedCommands) {
-                                            terminated = terminatedCommands.contains(commandId);
-                                        }
+                                    while (size > 0 && (read = inputStream.read(data, 0, (int) Math.min(data.length, size))) != -1) {
                                         fileOutput.write(data, 0, read);
                                         size -= read;
                                     }
                                     fileOutput.close();
-
-                                    if (terminated) {
-                                        file.delete();
-                                    }
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                } finally {
-                                    synchronized (nSocketInUse) {
-                                        nSocketInUse = false;
-                                    }
+                                } catch (Exception ignored) {
+                                    System.out.println("Couldn't receive file completely, deleting...");
                                     try {
-                                        inputStream.reset();
+                                        fileOutput.close();
                                     } catch (IOException e) {
                                         e.printStackTrace();
+                                    }
+                                    file.delete();
+                                } finally {
+                                    workingSockets.remove(commandId);
+                                    try {
+                                        inputStream.close();
+                                        outputStream.close();
+                                        socket.close();
+                                        synchronized (filesInUse) {
+                                            int nIndex = filesInUse.indexOf(fileId);
+                                            if (nIndex < 0) {
+                                                throw new Exception("File in use list is invalid");
+                                            }
+                                            filesInUse.remove(nIndex);
+                                        }
+                                    } catch (Exception ignored) {
                                     }
                                 }
                             }).start();
@@ -141,9 +190,15 @@ public class myftp {
                                 size -= read;
                             }
                             fileOutput.close();
+                            inputStream.close();
+                            outputStream.close();
+                            socket.close();
                         }
                     } else {
                         System.out.println("Did not receive file from server");
+                        inputStream.close();
+                        outputStream.close();
+                        socket.close();
                     }
                 } else if (command[0].equals("put")) {
                     String filename = command[1];
@@ -157,34 +212,30 @@ public class myftp {
 
                     if (file.isFile()) {
                         outputStream.writeLong(file.length());
-                        fileInput = new FileInputStream(file);
+                        FileInputStream fileInput = new FileInputStream(file);
                         data = new byte[1000];
                         if (concurrent) {
                             int commandId = inputStream.readInt();
                             System.out.println("command is running with id : " + commandId);
+                            workingSockets.put(commandId, socket);
+
                             new Thread(() -> {
-                                synchronized (nSocketInUse) {
-                                    nSocketInUse = true;
-                                }
                                 try {
                                     int read;
-                                    boolean terminated = false;
-                                    while ((read = fileInput.read(data)) != -1 && !terminated) {
-                                        synchronized (terminatedCommands) {
-                                            terminated = terminatedCommands.contains(commandId);
-                                        }
-                                        if(!terminated){
-                                            outputStream.write(data, 0, read);
-                                            outputStream.flush();
-                                        }
+                                    while ((read = fileInput.read(data)) != -1) {
+                                        outputStream.write(data, 0, read);
+                                        outputStream.flush();
                                     }
-                                    fileInput.close();
 
-                                } catch (Exception e) {
-                                    e.printStackTrace();
+                                } catch (Exception ignored) {
                                 } finally {
-                                    synchronized (nSocketInUse) {
-                                        nSocketInUse = false;
+                                    workingSockets.remove(commandId);
+                                    try {
+                                        fileInput.close();
+                                        inputStream.close();
+                                        outputStream.close();
+                                        socket.close();
+                                    } catch (IOException ignored) {
                                     }
                                 }
                             }).start();
@@ -195,46 +246,54 @@ public class myftp {
                                 outputStream.flush();
                             }
                             fileInput.close();
+                            inputStream.close();
+                            outputStream.close();
+                            socket.close();
                         }
                     } else {
                         System.out.println("File Not Found");
                         outputStream.writeLong(0); //No file
+                        inputStream.close();
+                        outputStream.close();
+                        socket.close();
                     }
                 } else if (command[0].equals("delete")) {
                     outputStream.writeUTF(command[1]);
                     System.out.println(inputStream.readUTF());
+                    inputStream.close();
+                    outputStream.close();
+                    socket.close();
                 } else if (command[0].equals("ls")) {
                     String lsFiles = inputStream.readUTF();
                     System.out.println(lsFiles);
-
+                    inputStream.close();
+                    outputStream.close();
+                    socket.close();
                 } else if (command[0].equals("cd")) {
                     outputStream.writeUTF(command[1]);
                     String result = inputStream.readUTF();
                     System.out.println(result);
-
+                    inputStream.close();
+                    outputStream.close();
+                    socket.close();
                 } else if (command[0].equals("mkdir")) {
                     outputStream.writeUTF(command[1]);
                     System.out.println(inputStream.readUTF());
-
+                    inputStream.close();
+                    outputStream.close();
+                    socket.close();
                 } else if (command[0].equals("pwd")) {
                     String pwd = inputStream.readUTF();
                     System.out.println(pwd);
-                } else if (command[0].equals("quit")) {
-                    outputStream.writeUTF(input);
-                    break;
+                } else {
+                    inputStream.close();
+                    outputStream.close();
+                    socket.close();
                 }
+            } catch (Exception e) {
+                System.out.println("Can't establish connection to Server");
+                e.printStackTrace();
             }
-        } catch (Exception e) {
-            System.out.println("Can't establish connection to Server");
-            e.printStackTrace();
-        } finally {
-            socket.close();
-            inputStream.close();
-            outputStream.close();
-            tsocket.close();
-            tinput.close();
-            toutput.close();
         }
-
     }
 }

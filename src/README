@@ -6,18 +6,19 @@ Terique Mick
 How to compile and run on nike:
 Note: You must run the files on two separate terminals in nike. When
 running the client, make sure to put the ip address argument before the server
-port number. Examples are listed below for compiling and running both the server
-and client files.
+port numbers. Examples are listed below for compiling and running both the server
+and client files. Please note that you will only receive a command id for the get
+and put commands with the '&' sign present.
 
-Server - myftpserver (must run with a port number argument)
+Server - myftpserver (must run with two port numbers argument for nport and tport)
 javac myftpserver.java
-java myftpserver (port number)
-Example Run: java myftpserver 10000
+java myftpserver (nport number) (tport number)
+Example Run: java myftpserver 10000 10010
 
-Client - myftp (must run with both machine name(ip address) and port number argument)
+Client - myftp (must run with both machine name(ip address) and port numbers argument)
 javac myftp.java
-java myftp (server ip address) (server port number)
-Example Run: java myftp 172.19.49.100  10000
+java myftp (server ip address) (server nport number) (server tport number)
+Example Run: java myftp 172.19.49.100  10000 10010
 
 Statement:
 This project was done in its entirety by Shantisa Strowder, Samuel Jackson,
