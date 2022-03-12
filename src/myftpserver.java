@@ -26,7 +26,6 @@ public class myftpserver {
             myftpserver serverSocket = new myftpserver();
             serverSocket.connection(args[0], args[1]);
         } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 
@@ -52,7 +51,6 @@ public class myftpserver {
                         thread.start();
                     }
                 } catch (IOException e) {
-                    e.printStackTrace();
                 }
             }).start();
 
@@ -68,13 +66,11 @@ public class myftpserver {
                         thread.start();
                     }
                 } catch (IOException e) {
-                    e.printStackTrace();
                 }
             }).start();
         } catch (Exception e) {
             server.close();
             tserver.close();
-            e.printStackTrace();
         }
     }
 }
@@ -105,7 +101,6 @@ class ClientThread extends Thread {
             }
             path = addressRegistry.get(id);
         } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 
@@ -164,7 +159,6 @@ class ClientThread extends Thread {
                                 }
                             }
                         } catch (Exception e) {
-                            e.printStackTrace();
                         }
                     } else {
                         getFileLock(fileId);
@@ -232,7 +226,6 @@ class ClientThread extends Thread {
                                 }
                             }
                         } catch (Exception e) {
-                            e.printStackTrace();
                             file.delete();
                         }
                     } else {
@@ -299,7 +292,6 @@ class ClientThread extends Thread {
                 System.out.println("Error");
             }
         } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 
@@ -344,7 +336,6 @@ class TerminatorThread extends Thread{
             inputStream = new DataInputStream(socket.getInputStream());
             outputStream = new DataOutputStream(socket.getOutputStream());
         } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 
@@ -376,7 +367,6 @@ class TerminatorThread extends Thread{
                     }
                 }
             } catch (IOException e) {
-                e.printStackTrace();
             }
         }).start();
     }

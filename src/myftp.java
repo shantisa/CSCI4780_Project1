@@ -12,7 +12,6 @@ public class myftp {
             clientSocket.connection(args[0], args[1], args[2]);
 
         } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 
@@ -31,6 +30,7 @@ public class myftp {
             client.process(command);
             if (command[0].equals("quit")) {
                 terminator.close();
+                client.close();
                 break;
             }
         }
@@ -74,7 +74,6 @@ public class myftp {
                 }
             } catch (Exception e) {
                 System.out.println("Can't establish connection to Server");
-                e.printStackTrace();
             }
         }
 
@@ -89,12 +88,10 @@ public class myftp {
     class Client {
         String ip;
         int port;
-        int id;
 
         Client(String ip, int port) {
             this.ip = ip;
             this.port = port;
-            id = ((int) (Math.random()*(253))) + 1;
         }
 
         private void process(String[] command) {
@@ -149,7 +146,6 @@ public class myftp {
                                     try {
                                         fileOutput.close();
                                     } catch (IOException e) {
-                                        e.printStackTrace();
                                     }
                                     file.delete();
                                 } finally {
@@ -291,7 +287,6 @@ public class myftp {
                 }
             } catch (Exception e) {
                 System.out.println("Can't establish connection to Server");
-                e.printStackTrace();
             }
         }
 
@@ -319,6 +314,12 @@ public class myftp {
                     throw new Exception("File in use list is invalid");
                 }
                 filesInUse.remove(nIndex);
+            }
+        }
+
+        void close() throws IOException {
+            for(Socket socket : workingSockets.values()){
+                socket.close();
             }
         }
     }
