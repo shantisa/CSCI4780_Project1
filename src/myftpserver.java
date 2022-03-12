@@ -287,6 +287,7 @@ class ClientThread extends Thread {
             } else if (command.equals("quit")) {
                 inputStream.close();
                 outputStream.close();
+                addressRegistry.remove(id);
                 socket.close();
             } else {
                 System.out.println("Error");
