@@ -127,8 +127,8 @@ class ClientThread extends Thread {
                 boolean concurrent = input.length > 1 && input[1].equals("&");
                 file = path.resolve(filename).toFile();
                 final String fileId = file.getAbsolutePath();
+                outputStream.writeBoolean(file.isFile());
                 if (file.isFile()) {
-                    outputStream.writeLong(file.length());
                     data = new byte[1000];
                     if (concurrent) {
                         int commandId = -1;
@@ -140,37 +140,49 @@ class ClientThread extends Thread {
                         final int finalCommandId = commandId;
                         try {
                             getFileLock(fileId);
-                            FileInputStream fileInput = new FileInputStream(file);
-                            int read;
-                            boolean terminated = false;
-                            while (!terminated && (read = fileInput.read(data)) != -1) {
+                            if(!file.exists()){
                                 synchronized (commandStatus) {
-                                    terminated = !commandStatus.get(finalCommandId);
+                                    commandStatus.set(commandId, false);
                                 }
-                                outputStream.write(data, 0, read);
-                                outputStream.flush();
-                            }
-                            fileInput.close();
+                                socket.close();
+                            }else{
+                                outputStream.writeLong(file.length());
+                                FileInputStream fileInput = new FileInputStream(file);
+                                int read;
+                                boolean terminated = false;
+                                while (!terminated && (read = fileInput.read(data)) != -1) {
+                                    synchronized (commandStatus) {
+                                        terminated = !commandStatus.get(finalCommandId);
+                                    }
+                                    outputStream.write(data, 0, read);
+                                    outputStream.flush();
+                                }
+                                fileInput.close();
 
-                            synchronized (commandStatus) {
-                                commandStatus.set(commandId, false);
+                                synchronized (commandStatus) {
+                                    commandStatus.set(commandId, false);
+                                }
                             }
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
                     } else {
                         getFileLock(fileId);
-                        FileInputStream fileInput = new FileInputStream(file);
-                        int read;
-                        while ((read = fileInput.read(data)) != -1) {
-                            outputStream.write(data, 0, read);
-                            outputStream.flush();
+                        if(!file.exists()){
+                            socket.close();
                         }
-                        fileInput.close();
+                        else{
+                            outputStream.writeLong(file.length());
+                            FileInputStream fileInput = new FileInputStream(file);
+                            int read;
+                            while ((read = fileInput.read(data)) != -1) {
+                                outputStream.write(data, 0, read);
+                                outputStream.flush();
+                            }
+                            fileInput.close();
+                        }
                     }
                     releaseFileLock(fileId);
-                } else {
-                    outputStream.writeLong(0); //No file
                 }
 
 
@@ -179,9 +191,8 @@ class ClientThread extends Thread {
                 String[] input = inputStream.readUTF().split(" ");
                 String filename = input[0];
                 boolean concurrent = input.length > 1 && input[1].equals("&");
-                final long finalSize = inputStream.readLong();
-
-                if (finalSize > 0) {
+                boolean exists = inputStream.readBoolean();
+                if (exists) {
                     data = new byte[1000];
                     file = path.resolve(filename).toFile();
                     final String fileId = file.getAbsolutePath();
@@ -195,38 +206,40 @@ class ClientThread extends Thread {
                         final int finalCommandId = commandId;
                         try {
                             getFileLock(fileId);
-                            file.delete();
-                            FileOutputStream fileOutput = new FileOutputStream(file);
-                            int read;
-                            long size = finalSize;
                             boolean terminated = false;
-                            while (size > 0 && !terminated &&
-                                    (read = inputStream.read(data, 0, (int) Math.min(data.length, size))) != -1) {
-                                synchronized (commandStatus) {
-                                    terminated = !commandStatus.get(finalCommandId);
-                                }
-                                fileOutput.write(data, 0, read);
-                                size -= read;
-                            }
-                            fileOutput.close();
-
-                            if (terminated) {
-                                file.delete();
-                            }
                             synchronized (commandStatus) {
-                                commandStatus.set(commandId, false);
+                                terminated = !commandStatus.get(finalCommandId);
                             }
+                            if(!terminated){
+                                FileOutputStream fileOutput = new FileOutputStream(file);
+                                int read;
+                                long size = inputStream.readLong();
+                                while (size > 0 && !terminated &&
+                                        (read = inputStream.read(data, 0, (int) Math.min(data.length, size))) != -1) {
+                                    synchronized (commandStatus) {
+                                        terminated = !commandStatus.get(finalCommandId);
+                                    }
+                                    fileOutput.write(data, 0, read);
+                                    size -= read;
+                                }
+                                fileOutput.close();
 
+                                if (terminated) {
+                                    file.delete();
+                                }
+                                synchronized (commandStatus) {
+                                    commandStatus.set(commandId, false);
+                                }
+                            }
                         } catch (Exception e) {
                             e.printStackTrace();
                             file.delete();
                         }
                     } else {
                         getFileLock(fileId);
-                        file.delete();
                         FileOutputStream fileOutput = new FileOutputStream(file);
                         int read;
-                        long size = finalSize;
+                        long size = inputStream.readLong();
                         while (size > 0 && (read = inputStream.read(data, 0, (int) Math.min(data.length, size))) != -1) {
                             fileOutput.write(data, 0, read);
                             size -= read;
@@ -240,7 +253,6 @@ class ClientThread extends Thread {
                 file = path.resolve(del).toFile();
                 String fileId = file.getAbsolutePath();
                 getFileLock(fileId);
-
                 if (file.isFile() && file.delete()) {
                     outputStream.writeUTF("File deleted");
                 } else {

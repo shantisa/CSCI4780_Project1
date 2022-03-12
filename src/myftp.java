@@ -117,9 +117,10 @@ public class myftp {
                     } else {
                         outputStream.writeUTF(filename);
                     }
-                    final long finalSize = inputStream.readLong();
 
-                    if (finalSize > 0) {
+                    boolean exists = inputStream.readBoolean();
+
+                    if (exists) {
                         data = new byte[1000];
                         File file = new File(filename);
                         File parent = file.getParentFile();
@@ -127,31 +128,17 @@ public class myftp {
                             parent.mkdirs();
                         }
                         FileOutputStream fileOutput = new FileOutputStream(file);
+                        final String fileId = file.getAbsolutePath();
                         if (concurrent) {
                             int commandId = inputStream.readInt();
                             System.out.println("command is running with id : " + commandId);
                             workingSockets.put(commandId, socket);
 
-                            final String fileId = file.getAbsolutePath();
                             new Thread(() -> {
                                 try {
-                                    boolean inUse;
-                                    do {
-                                        synchronized (filesInUse) {
-                                            if (!filesInUse.contains(fileId)) {
-                                                filesInUse.add(fileId);
-                                                inUse = false;
-                                            } else {
-                                                inUse = true;
-                                            }
-                                        }
-                                        if (inUse) {
-                                            Thread.sleep(1000);
-                                        }
-                                    } while (inUse);
-
+                                    getFileLock(fileId);
+                                    long size = inputStream.readLong();
                                     int read;
-                                    long size = finalSize;
                                     while (size > 0 && (read = inputStream.read(data, 0, (int) Math.min(data.length, size))) != -1) {
                                         fileOutput.write(data, 0, read);
                                         size -= read;
@@ -168,31 +155,37 @@ public class myftp {
                                 } finally {
                                     workingSockets.remove(commandId);
                                     try {
+                                        releaseFileLock(fileId);
                                         inputStream.close();
                                         outputStream.close();
                                         socket.close();
-                                        synchronized (filesInUse) {
-                                            int nIndex = filesInUse.indexOf(fileId);
-                                            if (nIndex < 0) {
-                                                throw new Exception("File in use list is invalid");
-                                            }
-                                            filesInUse.remove(nIndex);
-                                        }
                                     } catch (Exception ignored) {
                                     }
                                 }
                             }).start();
                         } else {
-                            int read;
-                            long size = finalSize;
-                            while (size > 0 && (read = inputStream.read(data, 0, (int) Math.min(data.length, size))) != -1) {
-                                fileOutput.write(data, 0, read);
-                                size -= read;
+                            try{
+                                getFileLock(fileId);
+                                int read;
+                                long size = inputStream.readLong();
+                                while (size > 0 && (read = inputStream.read(data, 0, (int) Math.min(data.length, size))) != -1) {
+                                    fileOutput.write(data, 0, read);
+                                    size -= read;
+                                }
+                                releaseFileLock(fileId);
+                                fileOutput.close();
+                                inputStream.close();
+                                outputStream.close();
+                                socket.close();
+                            }catch (Exception ignored){
+                                fileOutput.close();
+                                inputStream.close();
+                                file.delete();
+                                releaseFileLock(fileId);
+                                outputStream.close();
+                                socket.close();
                             }
-                            fileOutput.close();
-                            inputStream.close();
-                            outputStream.close();
-                            socket.close();
+
                         }
                     } else {
                         System.out.println("Did not receive file from server");
@@ -210,10 +203,11 @@ public class myftp {
                         outputStream.writeUTF(file.getName());
                     }
 
+                    outputStream.writeBoolean(file.isFile());
                     if (file.isFile()) {
-                        outputStream.writeLong(file.length());
                         FileInputStream fileInput = new FileInputStream(file);
                         data = new byte[1000];
+                        final String fileId = file.getAbsolutePath();
                         if (concurrent) {
                             int commandId = inputStream.readInt();
                             System.out.println("command is running with id : " + commandId);
@@ -221,6 +215,8 @@ public class myftp {
 
                             new Thread(() -> {
                                 try {
+                                    getFileLock(fileId);
+                                    outputStream.writeLong(file.length());
                                     int read;
                                     while ((read = fileInput.read(data)) != -1) {
                                         outputStream.write(data, 0, read);
@@ -231,15 +227,18 @@ public class myftp {
                                 } finally {
                                     workingSockets.remove(commandId);
                                     try {
+                                        releaseFileLock(fileId);
                                         fileInput.close();
                                         inputStream.close();
                                         outputStream.close();
                                         socket.close();
-                                    } catch (IOException ignored) {
+                                    } catch (Exception ignored) {
                                     }
                                 }
                             }).start();
                         } else {
+                            getFileLock(fileId);
+                            outputStream.writeLong(file.length());
                             int read;
                             while ((read = fileInput.read(data)) != -1) {
                                 outputStream.write(data, 0, read);
@@ -249,10 +248,10 @@ public class myftp {
                             inputStream.close();
                             outputStream.close();
                             socket.close();
+                            releaseFileLock(fileId);
                         }
                     } else {
                         System.out.println("File Not Found");
-                        outputStream.writeLong(0); //No file
                         inputStream.close();
                         outputStream.close();
                         socket.close();
@@ -293,6 +292,33 @@ public class myftp {
             } catch (Exception e) {
                 System.out.println("Can't establish connection to Server");
                 e.printStackTrace();
+            }
+        }
+
+        private void getFileLock(String fileId) throws InterruptedException {
+            boolean inUse;
+            do {
+                synchronized (filesInUse) {
+                    if (!filesInUse.contains(fileId)) {
+                        filesInUse.add(fileId);
+                        inUse = false;
+                    } else {
+                        inUse = true;
+                    }
+                }
+                if (inUse) {
+                    Thread.sleep(1000);
+                }
+            } while (inUse);
+        }
+
+        private void releaseFileLock(String fileId) throws Exception {
+            synchronized (filesInUse) {
+                int nIndex = filesInUse.indexOf(fileId);
+                if (nIndex < 0) {
+                    throw new Exception("File in use list is invalid");
+                }
+                filesInUse.remove(nIndex);
             }
         }
     }
