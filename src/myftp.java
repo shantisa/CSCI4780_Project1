@@ -100,7 +100,7 @@ public class myftp {
         private void process(String[] command) {
             try {
                 // establish connection with server
-                Socket socket = new Socket(ip, port, InetAddress.getByName("127.0.0."+id), 0);
+                Socket socket = new Socket(ip, port);
                 DataInputStream inputStream = new DataInputStream(socket.getInputStream());
                 DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
 
